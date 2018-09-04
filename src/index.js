@@ -1,40 +1,34 @@
 import express from 'express'
 import bodyParser from 'body-parser'
+import {UserRoute} from './routes/user.route'
+import { MusicRoute } from './routes/music.route'
 import {mongoose} from './db/mongoose'
-import {ensure_token} from './service/middleware'
-import {sign_up_middleware} from './service/signup_middle'
-import {User} from './models/user'
+import multer from 'multer'
+import cors from 'cors'
 import 'babel-polyfill'
-var app = express()
 
-app.listen(3000,()=>{
-    console.log("server is start on port 3000")
+var storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, './music')
+  },
+  filename: function (req, file, cb) {
+    var name = file.originalname.split(".")[0]
+
+    cb(null,name+ new Date().getTime()+".mp3")
+  }
+})
+var upload = multer({
+  storage:storage
+})
+var app = express()
+app.listen(5000, () => {
+  console.log("server is start on port 5000")
 })
 app.use(bodyParser.json())
+app.use(cors())
+UserRoute(app)
+MusicRoute(app,upload)
 
-app.post('/create',sign_up_middleware,(req,res)=>{
-    var newUser = new User({
-        username:req.body.username,
-        password:req.body.password,
-        created_at:new Date().getTime()
-    })
-    newUser.generate_token()
-    newUser.save()
-    res.status(200).send(newUser.token)
-})
-
-
-app.post('/login',async (req,res)=>{
-    var token = await User.login(req.body.username,req.body.password)
-    res.header("x-auth",token).status(200).send(token)
-})
-
-
-app.post('/api/protect',ensure_token,async (req,res)=>{
-    var check = await User.verify_token(req.token)
-    if(check === true){
-        res.status(200).send("hi,this is a top secrect api")
-    }else{
-        res.sendStatus(403)
-    }
-})
+module.exports = {
+  storage
+}
